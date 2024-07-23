@@ -1,0 +1,2 @@
+librarypath: /usr/local/corex/lib64/libixml.so
+sdksocketpath: /run/ix-sdk-manager/iluvatar-sdk-local.sock
