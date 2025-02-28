@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	log "github.com/sirupsen/logrus"
@@ -96,6 +97,13 @@ func (c *Config) update() error {
 		level = log.InfoLevel
 	}
 	log.SetLevel(level)
+
+	if dir := filepath.Dir(c.LogPath); dir != "" {
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			return fmt.Errorf("unable to create directory %v: %v", dir, err)
+		}
+	}
 
 	reader, err := os.OpenFile(c.LogPath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {

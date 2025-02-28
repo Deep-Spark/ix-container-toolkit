@@ -5,10 +5,11 @@
 - [Configuring](#configuring)
     - [Configuring Docker](#configuring-docker)
     - [Configuring Containerd](#configuring-containerd)
+    - [Configuring Crio](#configuring-crio)
 - [Running Samples](#running-samples)
-    - [Running Samples with Docker](#running-samples-with-docker)
-    - [Running Samples with Containerd](#running-samples-with-containerd)
-    - [Running Samples with Podman](#running-samples-with-podman)
+    - [Running a Sample Workload with Docker](#running-a-sample-workload-with-docker)
+    - [Running a Sample Workload with Containerd/Crio(for kubernetes 1.22+)](#running-a-sample-workload-with-containerd/crio(for-kubernetes-1.22+))
+    - [Running a Sample Workload with Podman](#running-a-sample-workload-with-podman)
 - [License](#license)
 
 ## Introduction
@@ -63,6 +64,23 @@ sudo systemctl daemon-reload
 sudo systemctl restart containerd
 ```
 
+### Configuring Crio (for Kubernetes)
+
+1. Run the ix-ctk
+
+```shell
+sudo ix-ctk runtime configure --runtime crio --ix-set-as-default
+```
+
+Run the `runtime configure --runtime crio` command will automatically add the configuration of `ix-container-runtime` to `/etc/crio/crio.conf`, The default configuration is generated in the config.yaml `/etc/iluvatarcorex/ix-container-runtime/` file, and  the containerd service needs to be restarted for the configuration to take effect.
+
+2. Restart crio service
+
+```shell
+sudo systemctl daemon-reload
+sudo systemctl restart crio
+```
+
 ## Running Samples
 
 ### Running a Sample Workload with Docker
@@ -94,7 +112,7 @@ Your output should resemble the following output:
 +-----------------------------------------------------------------------------+
 ```
 
-### Running a Sample Workload with Containerd(for kubernetes 1.24+)
+### Running a Sample Workload with Containerd/Crio(for kubernetes 1.22+)
 
 
 After you install and configure the toolkit and install Iluvatar GPU Driver and SDK, you can verify your installation by running a sample workload with kubernetes.
