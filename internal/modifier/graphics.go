@@ -137,7 +137,7 @@ func searchDevice() map[int]specs.LinuxDevice {
 	return ret
 }
 
-func generate_dev_from_string(devmap map[uint]IndexDevice, val string, mountIdx int) *specs.LinuxDevice {
+func generate_dev_from_string(devmap map[uint]IndexDevice, val string) *specs.LinuxDevice {
 	var ret specs.LinuxDevice
 	i, err := strconv.Atoi(val)
 	if err != nil {
@@ -151,7 +151,7 @@ func generate_dev_from_string(devmap map[uint]IndexDevice, val string, mountIdx 
 		return nil
 	}
 	ret = dev.LinuxDevice
-	strIdx := strconv.Itoa(mountIdx)
+	strIdx := strconv.Itoa(int(dev.Minor))
 	ret.Path = devicePath + "/" + deviceName + strIdx
 	return &ret
 }
@@ -174,7 +174,7 @@ func getdevice(devmap map[uint]IndexDevice, cudaImage image.CUDA) []specs.LinuxD
 		case "none":
 			return nil
 		default:
-			dev := generate_dev_from_string(devmap, val, 0)
+			dev := generate_dev_from_string(devmap, val)
 			if dev != nil {
 				ret = append(ret, *dev)
 				return ret
@@ -184,8 +184,8 @@ func getdevice(devmap map[uint]IndexDevice, cudaImage image.CUDA) []specs.LinuxD
 		}
 	}
 
-	for mountIdx, v := range devices.List() {
-		dev := generate_dev_from_string(devmap, v, mountIdx)
+	for _, v := range devices.List() {
+		dev := generate_dev_from_string(devmap, v)
 		if dev != nil {
 			ret = append(ret, *dev)
 		}

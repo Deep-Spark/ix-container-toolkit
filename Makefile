@@ -13,13 +13,5 @@ uninstall:
 	rm -f /usr/local/bin/ix-container-runtime
 	rm -f /usr/local/bin/ix-ctk
 
-generate-deps: all
-	mkdir -p build/deps
-	cp install.sh build/deps/
-	cp build/ix-container-runtime build/deps/
-	cp build/ix-ctk build/deps/
-	cp binary/* build/deps/
-	makeself build/deps build/ix-runtime-installer.run "IxRuntime" ./install.sh
-
 clean:
 	rm -rf build

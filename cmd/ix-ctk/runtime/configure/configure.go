@@ -23,6 +23,7 @@ import (
 
 	"gitee.com/deep-spark/ix-container-runtime/internal/config/engine"
 	"gitee.com/deep-spark/ix-container-runtime/internal/config/engine/containerd"
+	"gitee.com/deep-spark/ix-container-runtime/internal/config/engine/crio"
 	"gitee.com/deep-spark/ix-container-runtime/internal/config/engine/docker"
 	"github.com/urfave/cli/v2"
 )
@@ -130,6 +131,10 @@ func ConfigureRuntime(c config) error {
 	case "containerd":
 		cfg, err = containerd.New(
 			containerd.WithPath(configFilePath),
+		)
+	case "crio":
+		cfg, err = crio.New(
+			crio.WithPath(configFilePath),
 		)
 	case "docker":
 		cfg, err = docker.New(
