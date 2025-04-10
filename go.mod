@@ -5,7 +5,7 @@ go 1.22
 require github.com/opencontainers/runtime-spec v1.2.0
 
 require (
-	gitee.com/deep-spark/go-ixml v0.0.1
+	gitee.com/deep-spark/go-ixml v0.0.0-20250402060659-7a8e7dc6e049
 	github.com/pelletier/go-toml v1.9.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.4
@@ -33,5 +33,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
-
-replace gitee.com/deep-spark/go-ixml v0.0.1 => ./../go-ixml

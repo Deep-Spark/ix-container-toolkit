@@ -1,3 +1,5 @@
+gitee.com/deep-spark/go-ixml v0.0.0-20250402060659-7a8e7dc6e049 h1:Jtw6ZUZc7VEQTgRJ6RB5gQnAY/4ysU7PmKhTBroqqTE=
+gitee.com/deep-spark/go-ixml v0.0.0-20250402060659-7a8e7dc6e049/go.mod h1:UBRqak7S0kqCXMu8RTNyFRhoz9qAOPEM5Bl1pB7og8w=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
 github.com/cpuguy83/go-md2man/v2 v2.0.4 h1:wfIWP927BUkWJb2NmU/kNDYIBTh/ziUX91+lVfRxZq4=

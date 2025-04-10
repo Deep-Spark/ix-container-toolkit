@@ -43,6 +43,30 @@ type ProcessInfo_v1 struct {
 	UsedGpuMemory uint64
 }
 
+type GpmSample struct {
+	Handle *_Ctype_struct_nvmlGpmSample_st
+}
+
+type GpmMetric struct {
+	MetricId   uint32
+	NvmlReturn uint32
+	Value      float64
+	MetricInfo _Ctype_struct___3
+}
+
+type nvmlGpmMetricsGetType struct {
+	Version    uint32
+	NumMetrics uint32
+	Sample1    GpmSample
+	Sample2    GpmSample
+	Metrics    [98]GpmMetric
+}
+
+type GpmSupport struct {
+	Version           uint32
+	IsSupportedDevice uint32
+}
+
 type PciInfo struct {
 	BusIdLegacy    [16]int8
 	Domain         uint32

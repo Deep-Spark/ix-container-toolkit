@@ -1,3 +1,20 @@
+/*
+Copyright (c) 2024, Shanghai Iluvatar CoreX Semiconductor Co., Ltd.
+All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package ixml
 
 func DeviceGetCount() (uint, Return) {
@@ -41,9 +58,9 @@ func (device Device) GetName() (string, Return) {
 	return deviceGetName(device)
 }
 
-func deviceGetName(devuice Device) (string, Return) {
+func deviceGetName(device Device) (string, Return) {
 	Name := make([]byte, DEVICE_NAME_BUFFER_SIZE)
-	ret := nvmlDeviceGetName(devuice, &Name[0], DEVICE_NAME_BUFFER_SIZE)
+	ret := nvmlDeviceGetName(device, &Name[0], DEVICE_NAME_BUFFER_SIZE)
 	removeBytesSpaces(Name)
 	return removeBytesSpaces(Name), ret
 }
@@ -223,4 +240,98 @@ func deviceGetComputeRunningProcesses(device Device) ([]ProcessInfo_v1, Return) 
 		}
 		InfoCount *= 2
 	}
+}
+
+func (device Device) GetCurrentClocksThrottleReasons() (uint64, Return) {
+	return deviceGetCurrentClocksThrottleReasons(device)
+}
+
+func deviceGetCurrentClocksThrottleReasons(device Device) (uint64, Return) {
+	var clocksThrottleReasons uint64
+	ret := nvmlDeviceGetCurrentClocksThrottleReasons(device, &clocksThrottleReasons)
+	return clocksThrottleReasons, ret
+}
+
+func (device Device) GetPcieReplayCounter() (uint32, Return) {
+	return deviceGetPcieReplayCounter(device)
+}
+
+func deviceGetPcieReplayCounter(device Device) (uint32, Return) {
+	var value uint32
+	ret := nvmlDeviceGetPcieReplayCounter(device, &value)
+	return value, ret
+}
+
+func (device Device) GetEccErros() (uint32, uint32, Return) {
+	return deviceGetEccErros(device)
+}
+
+func deviceGetEccErros(device Device) (uint32, uint32, Return) {
+	var singleErr, doubleErr uint32
+	ret := ixmlDeviceGetEccErros(device, &singleErr, &doubleErr)
+	return singleErr, doubleErr, ret
+}
+
+func (device Device) GetHealth() (uint64, Return) {
+	return deviceGetHealth(device)
+}
+
+func deviceGetHealth(device Device) (uint64, Return) {
+	var health uint64
+	ret := ixmlDeviceGetHealth(device, &health)
+	return health, ret
+}
+
+func (device Device) GetTopology(device2 Device) (GpuTopologyLevel, Return) {
+	return deviceGetTopology(device, device2)
+}
+
+func deviceGetTopology(device, device2 Device) (GpuTopologyLevel, Return) {
+	var pathInfo GpuTopologyLevel
+	ret := nvmlDeviceGetTopologyCommonAncestor(device, device2, &pathInfo)
+	return pathInfo, ret
+}
+
+func (device Device) GetPowerManagementLimit() (uint32, Return) {
+	var limit uint32
+	ret := nvmlDeviceGetPowerManagementLimit(device, &limit)
+	return limit, ret
+}
+
+func DeviceGetPowerManagementLimit(device Device) (uint32, Return) {
+	return device.GetPowerManagementLimit()
+}
+
+func (device Device) GetPowerManagementLimitConstraints() (uint32, uint32, Return) {
+	return deviceGetPowerManagementLimitConstraints(device)
+}
+
+func deviceGetPowerManagementLimitConstraints(device Device) (uint32, uint32, Return) {
+	var minLimit, maxLimit uint32
+	ret := nvmlDeviceGetPowerManagementLimitConstraints(device, &minLimit, &maxLimit)
+	return minLimit, maxLimit, ret
+}
+
+func DeviceGetPowerManagementLimitConstraints(device Device) (uint32, uint32, Return) {
+	return device.GetPowerManagementLimitConstraints()
+}
+
+func (device Device) GetPowerManagementDefaultLimit() (uint32, Return) {
+	var defaultLimit uint32
+	ret := nvmlDeviceGetPowerManagementDefaultLimit(device, &defaultLimit)
+	return defaultLimit, ret
+}
+
+func DeviceGetPowerManagementDefaultLimit(device Device) (uint32, Return) {
+	return device.GetPowerManagementDefaultLimit()
+}
+
+func (device Device) GetTemperatureThreshold(thresholdType TemperatureThresholds) (uint32, Return) {
+	var temp uint32
+	ret := nvmlDeviceGetTemperatureThreshold(device, thresholdType, &temp)
+	return temp, ret
+}
+
+func DeviceGetTemperatureThreshold(device Device, thresholdType TemperatureThresholds) (uint32, Return) {
+	return device.GetTemperatureThreshold(thresholdType)
 }
