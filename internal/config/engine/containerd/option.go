@@ -27,15 +27,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	defaultRuntimeType = "io.containerd.runc.v2"
-)
-
 type builder struct {
 	path                 string
 	runtimeType          string
 	useLegacyConfig      bool
 	containerAnnotations []string
+	configVersion        int
 }
 
 // Option defines a function that can be used to configure the config builder
@@ -69,13 +66,16 @@ func WithContainerAnnotations(containerAnnotations ...string) Option {
 	}
 }
 
+// WithConfigVersion sets the config version for the config builder
+func WithConfigVersion(configVersion int) Option {
+	return func(b *builder) {
+		b.configVersion = configVersion
+	}
+}
+
 func (b *builder) build() (engine.Interface, error) {
 	if b.path == "" {
 		return nil, fmt.Errorf("config path is empty")
-	}
-
-	if b.runtimeType == "" {
-		b.runtimeType = defaultRuntimeType
 	}
 
 	config, err := b.loadConfig(b.path)
@@ -86,18 +86,40 @@ func (b *builder) build() (engine.Interface, error) {
 	config.UseDefaultRuntimeName = !b.useLegacyConfig
 	config.ContainerAnnotations = b.containerAnnotations
 
-	version, err := config.parseVersion(b.useLegacyConfig)
+	configVersion, err := b.parseVersion(config.Tree)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config version: %v", err)
 	}
-	switch version {
+
+	log.Printf("Using config version: %v", configVersion)
+
+	criRuntimePluginName, err := b.criRuntimePluginName(configVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CRI runtime plugin name: %w", err)
+	}
+
+	log.Printf("Using CRI runtime plugin name: %v", criRuntimePluginName)
+
+	config.CRIRuntimePluginName = criRuntimePluginName
+	config.Version = configVersion
+	switch configVersion {
 	case 1:
 		return (*ConfigV1)(config), nil
-	case 2:
+	default:
 		return config, nil
 	}
 
-	return nil, fmt.Errorf("unsupported config version: %v", version)
+}
+
+func (b *builder) criRuntimePluginName(configVersion int64) (string, error) {
+	switch configVersion {
+	case 1:
+		return "cri", nil
+	case 2:
+		return "io.containerd.grpc.v1.cri", nil
+	default:
+		return "io.containerd.cri.v1.runtime", nil
+	}
 }
 
 // loadConfig loads the containerd config from disk
@@ -125,24 +147,34 @@ func (b *builder) loadConfig(config string) (*Config, error) {
 	return &cfg, nil
 }
 
-// parseVersion returns the version of the config
-func (c *Config) parseVersion(useLegacyConfig bool) (int, error) {
-	defaultVersion := 2
-	if useLegacyConfig {
-		defaultVersion = 1
+func (b *builder) parseVersion(c *toml.Tree) (int64, error) {
+	if c == nil || len(c.Keys()) == 0 {
+		// No config exists, or the config file is empty.
+		if b.useLegacyConfig {
+			// If a legacy config is explicitly requested, we default to a v1 config.
+			return 1, nil
+		}
+		// Use the requested version.
+		return int64(b.configVersion), nil
 	}
 
 	switch v := c.Get("version").(type) {
 	case nil:
-		switch len(c.Keys()) {
-		case 0: // No config exists, or the config file is empty, use version inferred from containerd
-			return defaultVersion, nil
-		default: // A config file exists, has content, and no version is set
-			return 1, nil
-		}
+		return 1, nil
 	case int64:
-		return int(v), nil
+		return v, nil
 	default:
 		return -1, fmt.Errorf("unsupported type for version field: %v", v)
+	}
+}
+
+func (b *Config) criRuntimePluginName(configVersion int64) (string, error) {
+	switch configVersion {
+	case 1:
+		return "cri", nil
+	case 2:
+		return "io.containerd.grpc.v1.cri", nil
+	default:
+		return "io.containerd.cri.v1.runtime", nil
 	}
 }

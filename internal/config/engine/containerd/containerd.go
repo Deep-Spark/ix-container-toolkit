@@ -23,19 +23,29 @@ import (
 	"gitee.com/deep-spark/ix-container-runtime/internal/config/engine"
 )
 
+const (
+	defaultConfigVersion = 2
+	defaultRuntimeType   = "io.containerd.runc.v2"
+)
+
 // Config represents the containerd config
 type Config struct {
 	*toml.Tree
 	RuntimeType           string
 	UseDefaultRuntimeName bool
 	ContainerAnnotations  []string
+	Version               int64
+	CRIRuntimePluginName  string
 }
 
 var _ engine.Interface = (*Config)(nil)
 
 // New creates a containerd config with the specified options
 func New(opts ...Option) (engine.Interface, error) {
-	b := &builder{}
+	b := &builder{
+		configVersion: defaultConfigVersion,
+		runtimeType:   defaultRuntimeType,
+	}
 	for _, opt := range opts {
 		opt(b)
 	}
