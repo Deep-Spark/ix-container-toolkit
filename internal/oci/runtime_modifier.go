@@ -48,9 +48,9 @@ func (r *modifyingRuntimeWrapper) Exec(args []string) error {
 		if err != nil {
 			return fmt.Errorf("could not apply required modification to OCI specification: %v", err)
 		}
-		log.Printf("Applied required modification to OCI specification")
+		log.Debug("OCI specification processed successfully")
 	} else {
-		log.Printf("No modification of OCI specification required")
+		log.Debug("Skipping OCI specification modification for non-create command")
 	}
 
 	return r.runtime.Exec(args)

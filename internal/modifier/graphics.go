@@ -81,62 +81,6 @@ func (g graphicsModifier) Modify(spec *specs.Spec) error {
 	return nil
 }
 
-func searchDevice() map[int]specs.LinuxDevice {
-	ret := make(map[int]specs.LinuxDevice)
-	libRegEx, e := regexp.Compile(deviceName + "[0-9]")
-	if e != nil {
-		log.Fatal(e)
-	}
-	e = filepath.Walk(devicePath, func(path string, info os.FileInfo, err error) error {
-		if err == nil && libRegEx.MatchString(info.Name()) {
-			absolutePath := path
-			var stat unix.Stat_t
-			if err := unix.Lstat(path, &stat); err != nil {
-				return err
-			}
-
-			var (
-				devNumber = uint64(stat.Rdev)
-				major     = unix.Major(devNumber)
-				minor     = unix.Minor(devNumber)
-				mode      = stat.Mode
-				devType   string
-			)
-
-			switch mode & unix.S_IFMT {
-			case unix.S_IFBLK:
-				devType = blockDevice
-			case unix.S_IFCHR:
-				devType = charDevice
-			case unix.S_IFIFO:
-				devType = fifoDevice
-			default:
-				return ErrNotADevice
-			}
-			fm := os.FileMode(mode &^ unix.S_IFMT)
-			dev := specs.LinuxDevice{
-				Type:     devType,
-				Path:     absolutePath,
-				Major:    int64(major),
-				Minor:    int64(minor),
-				FileMode: &fm,
-				UID:      &stat.Uid,
-				GID:      &stat.Gid,
-			}
-
-			ret[int(minor)] = dev
-		}
-		return nil
-	})
-
-	if e != nil {
-		log.Printf("error for walk:%v\n", e)
-		return nil
-	}
-
-	return ret
-}
-
 func generate_dev_from_string(devmap map[uint]IndexDevice, val string) *specs.LinuxDevice {
 	var ret specs.LinuxDevice
 	i, err := strconv.Atoi(val)
@@ -156,7 +100,7 @@ func generate_dev_from_string(devmap map[uint]IndexDevice, val string) *specs.Li
 	return &ret
 }
 
-func getdevice(devmap map[uint]IndexDevice, cudaImage image.CUDA) []specs.LinuxDevice {
+func getGPUDevice(devmap map[uint]IndexDevice, cudaImage image.CUDA) []specs.LinuxDevice {
 	var ret []specs.LinuxDevice
 	devices := cudaImage.DevicesFromEnvvars(visibleDevicesEnvvar)
 	if len(devices.List()) == 0 {
@@ -193,19 +137,6 @@ func getdevice(devmap map[uint]IndexDevice, cudaImage image.CUDA) []specs.LinuxD
 	return ret
 }
 
-func buildMountDevice(index int, dev specs.LinuxDevice) specs.LinuxDevice {
-	devIdx := strconv.Itoa(index)
-	mountPath := devicePath + "/" + deviceName + devIdx
-	return specs.LinuxDevice{Type: dev.Type,
-		Path:     mountPath,
-		Major:    dev.Major,
-		Minor:    dev.Minor,
-		FileMode: dev.FileMode,
-		UID:      dev.UID,
-		GID:      dev.GID,
-	}
-}
-
 // requiresGraphicsModifier determines whether a graphics modifier is required.
 func buildMap(librarypath string) map[uint]IndexDevice {
 	IndexMap := make(map[uint]IndexDevice)
@@ -219,17 +150,17 @@ func buildMap(librarypath string) map[uint]IndexDevice {
 		ret = ixml.Init()
 	}
 	if ret != ixml.SUCCESS {
-		log.Printf("Unable to initialize IXML:%v\n", ret)
-		log.Printf("librarypath:%v", librarypath)
+		log.Debugf("Unable to initialize IXML:%v\n", ret)
+		log.Debugf("librarypath:%v", librarypath)
 		return nil
 	}
 	count, ret := ixml.DeviceGetCount()
 	if ret != ixml.SUCCESS {
-		log.Printf("failed to get count:%v\n", ret)
+		log.Debugf("failed to get count:%v\n", ret)
 		return nil
 	}
 
-	log.Printf("count: %d\n", count)
+	log.Debugf("devicecount: %d\n", count)
 
 	for i := uint(0); i < count; i++ {
 		var device ixml.Device
@@ -260,9 +191,96 @@ func NewGraphicsModifier(image image.CUDA) oci.SpecModifier {
 		return nil
 	}
 
+	gpuDevices := getGPUDevice(devMap, image)
+	commonDevices := getCommonDevices()
+	allDevices := append(gpuDevices, commonDevices...)
+
 	ret := graphicsModifier{
-		addDevice: getdevice(devMap, image),
+		addDevice: allDevices,
 	}
 
 	return ret
+}
+
+func getCommonDevices() []specs.LinuxDevice {
+	var devices []specs.LinuxDevice
+
+	// necessary devices for driver 4.4.0
+	commonDevicePaths := []string{
+		"/dev/itrctl",
+	}
+
+	for _, path := range commonDevicePaths {
+		dev, err := getDeviceInfo(path)
+		if err != nil {
+			log.Warnf("Failed to get device %s: %v", path, err)
+			continue
+		}
+		devices = append(devices, dev)
+		log.Debugf("Added common device: %s", path)
+	}
+
+	return devices
+}
+
+func searchDevice() map[int]specs.LinuxDevice {
+	ret := make(map[int]specs.LinuxDevice)
+	libRegEx, e := regexp.Compile(deviceName + "[0-9]")
+	if e != nil {
+		log.Fatal(e)
+	}
+	e = filepath.Walk(devicePath, func(path string, info os.FileInfo, err error) error {
+		if err == nil && libRegEx.MatchString(info.Name()) {
+			dev, err := getDeviceInfo(path)
+			if err != nil {
+				return err
+			}
+			ret[int(dev.Minor)] = dev
+		}
+		return nil
+	})
+
+	if e != nil {
+		log.Printf("error for walk:%v\n", e)
+		return nil
+	}
+
+	return ret
+}
+
+func getDeviceInfo(devicePath string) (specs.LinuxDevice, error) {
+	var stat unix.Stat_t
+	if err := unix.Lstat(devicePath, &stat); err != nil {
+		return specs.LinuxDevice{}, err
+	}
+
+	var (
+		devNumber = uint64(stat.Rdev)
+		major     = unix.Major(devNumber)
+		minor     = unix.Minor(devNumber)
+		mode      = stat.Mode
+		devType   string
+	)
+
+	switch mode & unix.S_IFMT {
+	case unix.S_IFBLK:
+		devType = blockDevice
+	case unix.S_IFCHR:
+		devType = charDevice
+	case unix.S_IFIFO:
+		devType = fifoDevice
+	default:
+		return specs.LinuxDevice{}, ErrNotADevice
+	}
+
+	fm := os.FileMode(mode &^ unix.S_IFMT)
+	return specs.LinuxDevice{
+		Type:     devType,
+		Path:     devicePath,
+		Major:    int64(major),
+		Minor:    int64(minor),
+		FileMode: &fm,
+		UID:      &stat.Uid,
+		GID:      &stat.Gid,
+	}, nil
 }

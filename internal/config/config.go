@@ -46,8 +46,7 @@ type Config struct {
 	Loglevel      string `json:"loglevel"             yaml:"loglevel,omitempty"`
 	LogPath       string `json:"logpath"             yaml:"logpath,omitempty"`
 	LibraryPath   string `json:"librarypath"             yaml:"librarypath,omitempty"`
-	DefaultSdk    string `json:"defaultsdk" yaml:"defaultsdk"`
-	SdkSocketPath string `json:"sdksocketpath" yaml:"sdksocketpath"`
+	MountCorexSdk bool   `json:"mountcorexsdk" yaml:"mountcorexsdk"` // false by default
 }
 
 func parseConfigFrom(reader io.Reader) (*Config, error) {

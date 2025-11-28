@@ -33,7 +33,7 @@ func NewLowLevelRuntime(candidates []string) (Runtime, error) {
 		return nil, fmt.Errorf("error locating runtime: %v", err)
 	}
 
-	log.Infof("Using low-level runtime %v", runtimePath)
+	log.Debugf("Using low-level runtime %v", runtimePath)
 	return NewRuntimeForPath(runtimePath)
 }
 

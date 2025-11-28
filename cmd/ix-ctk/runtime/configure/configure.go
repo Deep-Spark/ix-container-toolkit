@@ -34,8 +34,8 @@ const (
 	defaultCrioConfigFilePath       = "/etc/crio/crio.conf"
 	defaultDockerConfigFilePath     = "/etc/docker/daemon.json"
 	defaultConfigFilePath           = "/etc/iluvatarcorex/ix-container-runtime/config.yaml"
-	defaultConfigFileContent        = `librarypath: /usr/local/corex/lib64/libixml.so
-sdksocketpath: /run/ix-sdk-manager/ix-sdk.sock`
+
+// defaultConfigFileContent        = `librarypath: /usr/local/corex/lib64/libixml.so
 )
 
 type command struct {
@@ -171,10 +171,10 @@ func ConfigureRuntime(c config) error {
 		log.Printf("It is recommended that %v daemon be restarted.\n", c.runtime)
 	}
 
-	_, err = engine.Config(defaultConfigFilePath).Write([]byte(defaultConfigFileContent))
-	if err != nil {
-		return fmt.Errorf("unable to flush config: %v", defaultConfigFilePath)
-	}
+	// _, err = engine.Config(defaultConfigFilePath).Write([]byte(defaultConfigFileContent))
+	// if err != nil {
+	// 	return fmt.Errorf("unable to flush config: %v", defaultConfigFilePath)
+	// }
 
 	return nil
 }

@@ -62,7 +62,7 @@ func (r rt) Run(argv []string) (rerr error) {
 		}
 
 		gpuModifier := modifier.NewGraphicsModifier(image)
-		sdkModifier := modifier.NewSdkModifier(image)
+		sdkModifier := modifier.NewSdkModifier(image, cfg)
 		mergeModifier := modifier.Merge(gpuModifier, sdkModifier)
 		r := oci.NewModifyingRuntimeWrapper(lowLevelRuntime, ociSpec, mergeModifier)
 

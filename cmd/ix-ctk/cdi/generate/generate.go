@@ -140,10 +140,16 @@ func (m command) generateSpec(opts *options, cfg *config.Config) (spec.Interface
 		return nil, fmt.Errorf("failed to create device CDI specs: %v", err)
 	}
 
+	commonEdits, err := cdilib.GetCommonEdits()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create edits common for entities: %v", err)
+	}
+
 	return spec.New(
 		spec.WithVendor(opts.vendor),
 		spec.WithClass(opts.class),
 		spec.WithDeviceSpecs(deviceSpecs),
+		spec.WithEdits(*commonEdits.ContainerEdits),
 		spec.WithPermissions(0644),
 		spec.WithMergedDeviceOptions(
 			transform.WithName(allDeviceName),

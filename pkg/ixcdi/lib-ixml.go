@@ -32,6 +32,14 @@ type ixmllib ixcdilib
 
 var _ Interface = (*ixmllib)(nil)
 
+func (l *ixmllib) GetCommonEdits() (*cdi.ContainerEdits, error) {
+	return &cdi.ContainerEdits{
+		ContainerEdits: &specs.ContainerEdits{
+			DeviceNodes: []*specs.DeviceNode{{Path: "/dev/itrctl"}},
+		},
+	}, nil
+}
+
 // GetAllDeviceSpecs returns the device specs for all available devices.
 func (l *ixmllib) GetAllDeviceSpecs() ([]specs.Device, error) {
 	var deviceSpecs []specs.Device
@@ -80,7 +88,7 @@ func (l *ixmllib) getGPUDeviceSpecs() ([]specs.Device, error) {
 		if ret != ixml.SUCCESS {
 			log.Fatalf("Unable to get device at index %d: %v", i, ret)
 		}
-		specsForDevice, err := l.GetGPUDeviceSpecs(int(i), device)
+		specsForDevice, err := l.getSpecsForDevice(int(i), device)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate CDI edits for GPU devices: %v", err)
 		}
@@ -90,9 +98,9 @@ func (l *ixmllib) getGPUDeviceSpecs() ([]specs.Device, error) {
 	return deviceSpecs, err
 }
 
-// GetGPUDeviceSpecs returns the CDI device specs for the full GPU represented by 'device'.
-func (l *ixmllib) GetGPUDeviceSpecs(i int, d ixml.Device) ([]specs.Device, error) {
-	edits, err := l.GetGPUDeviceEdits(d)
+// getSpecsForDevice returns the CDI device specs for the full GPU represented by 'device'.
+func (l *ixmllib) getSpecsForDevice(i int, d ixml.Device) ([]specs.Device, error) {
+	edits, err := l.getGPUDeviceEdits(d)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get edits for device: %v", err)
 	}
@@ -117,8 +125,8 @@ func (l *ixmllib) GetGPUDeviceSpecs(i int, d ixml.Device) ([]specs.Device, error
 	return deviceSpecs, nil
 }
 
-// GetGPUDeviceEdits returns the CDI edits for the full GPU represented by 'device'.
-func (l *ixmllib) GetGPUDeviceEdits(d ixml.Device) (*cdi.ContainerEdits, error) {
+// getGPUDeviceEdits returns the CDI edits for the full GPU represented by 'device'.
+func (l *ixmllib) getGPUDeviceEdits(d ixml.Device) (*cdi.ContainerEdits, error) {
 	device, err := l.newFullGPUDiscoverer(d)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create device discoverer: %v", err)
@@ -134,16 +142,8 @@ func (l *ixmllib) GetGPUDeviceEdits(d ixml.Device) (*cdi.ContainerEdits, error) 
 
 // newFullGPUDiscoverer creates a discoverer for the full GPU defined by the specified device.
 func (l *ixmllib) newFullGPUDiscoverer(d ixml.Device) (discover.Discover, error) {
-	ixmlDiscoverer, err := l.newIxmlDGPUDiscoverer(&toRequiredInfo{d})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get devicenode: %v", err)
-	}
-
-	return ixmlDiscoverer, nil
-}
-
-func (l *ixmllib) newIxmlDGPUDiscoverer(d requiredInfo) (discover.Discover, error) {
-	path, err := d.getDevNodePath()
+	requiredInfo := toRequiredInfo{d}
+	path, err := requiredInfo.getDevNodePath()
 	if err != nil {
 		return nil, fmt.Errorf("error getting device node path: %w", err)
 	}

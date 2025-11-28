@@ -18,13 +18,14 @@
 package ixcdi
 
 import (
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 	"tags.cncf.io/container-device-interface/specs-go"
 )
 
 // Interface defines the API for the ixcdi package
 type Interface interface {
 	// GetSpec() (spec.Interface, error)
-	// GetCommonEdits() (*cdi.ContainerEdits, error)
+	GetCommonEdits() (*cdi.ContainerEdits, error)
 	GetAllDeviceSpecs() ([]specs.Device, error)
 	// GetGPUDeviceEdits(ixml.Device) (*cdi.ContainerEdits, error)
 	// GetGPUDeviceSpecs(int, ixml.Device) ([]specs.Device, error)

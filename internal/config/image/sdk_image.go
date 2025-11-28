@@ -25,8 +25,7 @@ import (
 )
 
 func (i CUDA) SdkFromEnvvars(sdkEnv, pathEnv, ldPathEnv string) VisibleSdk {
-	log.Printf("enter SdkFromEnvvars !!!\n")
-	setSdk := i.Cfg.DefaultSdk
+	setSdk := ""
 	pathVal := ""
 	ldPathVal := ""
 
@@ -42,6 +41,6 @@ func (i CUDA) SdkFromEnvvars(sdkEnv, pathEnv, ldPathEnv string) VisibleSdk {
 		ldPathVal = strings.Trim(ldPath, " \t\n\r")
 	}
 
-	log.Printf("setSdk name:%v  path:%v ldpath:%v\n", setSdk, pathVal, ldPathVal)
+	log.Debugf("setSdk name:%v  path:%v ldpath:%v\n", setSdk, pathVal, ldPathVal)
 	return NewVisibleSdk(setSdk, pathVal, ldPathVal)
 }

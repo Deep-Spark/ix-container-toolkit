@@ -18,24 +18,19 @@
 package modifier
 
 import (
-	"context"
 	"fmt"
-	"time"
+	"os"
+	"path/filepath"
+	"strings"
 
+	"gitee.com/deep-spark/ix-container-runtime/internal/config"
 	"gitee.com/deep-spark/ix-container-runtime/internal/config/image"
 	"gitee.com/deep-spark/ix-container-runtime/internal/oci"
-	pb "gitee.com/deep-spark/ix-container-runtime/internal/sdk"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 )
 
 type sdkModifier struct {
-	client pb.SdkServiceClient
-	conn   *grpc.ClientConn
-	ctx    context.Context
-	Cancel context.CancelFunc
-
 	Change image.VisibleSdk
 }
 
@@ -49,104 +44,91 @@ const (
 	ldPathAdded = "/usr/local/corex/lib64"
 )
 
-func (c *sdkModifier) QueryCache(imageName string) (string, string, string, error) {
-	req := &pb.QueryCacheRequest{ImageName: imageName, Method: ""}
-	resp, err := c.client.QueryCache(c.ctx, req)
-	if err != nil {
-		return "", "", "", err
-	}
-	if resp.Destination == "" {
-		log.Printf("No such Destination")
-	} else {
-		log.Printf("Response: %s", resp.Destination)
-	}
-	return resp.Destination, resp.Method, resp.Type, nil
-}
-
-func (c *sdkModifier) PrepareCache(imageName string) (bool, string, error) {
-	req := &pb.PrepareCacheRequest{ImageName: imageName, Method: "", Filter: []string{"type=sdk", "vendor=iluvatarcorex"}}
-	resp, err := c.client.PrepareCache(c.ctx, req)
-	if err != nil {
-		return false, "", err
-	}
-
-	if resp.Status == "ok" {
-		return false, resp.Method, nil
-	} else {
-		return true, resp.Method, nil
-	}
-}
-
 func (s sdkModifier) Modify(spec *specs.Spec) error {
-	log.Printf("entry modfiy\n")
-	var destination_corex_dir string
+	log.Debug("start sdk modification")
 
-	pathVal := s.Change.Path()
-	pathVal = fmt.Sprintf("%v=%v:%v", pathEnv, pathAdded, pathVal)
-	ldpathVal := s.Change.LdPath()
-	if ldpathVal == "" {
-		ldpathVal = fmt.Sprintf("%v=%v", ldPathEnv, ldPathAdded)
-	} else {
-		ldpathVal = fmt.Sprintf("%v=%v:%v", ldPathEnv, ldPathAdded, ldpathVal)
+	if spec.Process == nil {
+		spec.Process = &specs.Process{}
 	}
-	//var needPull bool
-	image := s.Change.Name()
-	if image == "" {
-		return nil
-	}
-	destination, _, imageType, err := s.QueryCache(image)
+	err := checkSourceDir(defaultDestination)
 	if err != nil {
-		log.Printf("query cache failed %v", image)
 		return err
 	}
-
-	if destination == "" {
-		_, _, err = s.PrepareCache(image)
-		if err != nil {
-			log.Printf("PrepareCache failed %v", image)
-			return err
-		} else {
-			log.Printf("Cache not exists, call prepare to pull image %v", image)
-			return fmt.Errorf("Cache not exists, call prepare to pull image %v", image)
-		}
-	}
-	if imageType != "sdk" {
-		return fmt.Errorf("Image type is not sdk, real type:%v\n", imageType)
+	entries, err := os.ReadDir(defaultDestination)
+	if err != nil {
+		return fmt.Errorf("failed to read directory %s: %v", defaultDestination, err)
 	}
 
-	destination_corex_dir = destination
+	// Iterate through each entry in the directory.
+	for _, entry := range entries {
+		absPath := filepath.Join(defaultDestination, entry.Name())
 
-	spec.Mounts = append(spec.Mounts,
-		specs.Mount{Destination: defaultDestination,
-			Source: destination_corex_dir,
-			Type:   "linux",
-			Options: []string{
-				"ro",
-				"nosuid",
-				"nodev",
-				"bind"}})
+		spec.Mounts = append(spec.Mounts, specs.Mount{
+			Destination: absPath,
+			Source:      absPath,
+			Type:        "bind",
+			Options:     []string{"rbind", "ro", "nosuid", "nodev", "rprivate"},
+		})
 
-	log.Printf("---> pathval :%v  ldpathval:%v\n", pathVal, ldpathVal)
-	spec.Process.Env = append(spec.Process.Env, pathVal)
-	spec.Process.Env = append(spec.Process.Env, ldpathVal)
+		log.Debugf("added mount: %s -> %s", absPath, absPath)
+	}
+
+	basePath := s.Change.Path()
+	baseLdPath := s.Change.LdPath()
+	newPathVal := joinPathLike(pathAdded, basePath)
+	newLdPathVal := joinPathLike(ldPathAdded, baseLdPath)
+
+	spec.Process.Env = setOrReplaceEnv(spec.Process.Env, pathEnv, newPathVal)
+	spec.Process.Env = setOrReplaceEnv(spec.Process.Env, ldPathEnv, newLdPathVal)
+
+	log.Debugf("---> pathval updated to :%v=%v", pathEnv, newPathVal)
+	log.Debugf("---> ldpathval updated to :%v=%v", ldPathEnv, newLdPathVal)
 
 	return nil
 }
 
-func NewSdkModifier(ig image.CUDA) oci.SpecModifier {
-	var err error
-	ret := sdkModifier{}
-
-	connectPath := "unix://" + ig.Cfg.SdkSocketPath
-	log.Printf("connect address:%v", connectPath)
-	ret.conn, err = grpc.NewClient(connectPath, grpc.WithInsecure())
-	if err != nil {
-		log.Printf("open sdk local failed\n")
+func NewSdkModifier(ig image.CUDA, cfg *config.Config) oci.SpecModifier {
+	if !cfg.MountCorexSdk {
+		log.Debug("MountCorexSdk is false, skipping Corex SDK modification")
 		return nil
 	}
-	ret.client = pb.NewSdkServiceClient(ret.conn)
-	ret.ctx, ret.Cancel = context.WithTimeout(context.Background(), time.Second)
-	ret.Change = ig.SdkFromEnvvars(visibleSdkEnvvar, pathEnv, ldPathEnv)
 
-	return ret
+	return sdkModifier{
+		Change: ig.SdkFromEnvvars(visibleSdkEnvvar, pathEnv, ldPathEnv),
+	}
+}
+
+func checkSourceDir(source string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", source)
+	}
+	return nil
+}
+
+func joinPathLike(add, base string) string {
+	if add == "" {
+		return base
+	}
+	if base == "" {
+		return add
+	}
+	return add + ":" + base
+}
+
+func setOrReplaceEnv(env []string, key, value string) []string {
+	prefix := key + "="
+	out := env[:0]
+	// remove all entries with the same key
+	for _, e := range env {
+		if !strings.HasPrefix(e, prefix) {
+			out = append(out, e)
+		}
+	}
+	// replace the value
+	out = append(out, prefix+value)
+	return out
 }
